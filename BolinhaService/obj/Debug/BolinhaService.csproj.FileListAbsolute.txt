@@ -1,0 +1,6 @@
+C:\Projetos\Presentations\GIBC2019\BolinhaService\bin\BolinhaService.dll.config
+C:\Projetos\Presentations\GIBC2019\BolinhaService\bin\BolinhaService.dll
+C:\Projetos\Presentations\GIBC2019\BolinhaService\bin\BolinhaService.pdb
+C:\Projetos\Presentations\GIBC2019\BolinhaService\obj\Debug\BolinhaService.csproj.CoreCompileInputs.cache
+C:\Projetos\Presentations\GIBC2019\BolinhaService\obj\Debug\BolinhaService.dll
+C:\Projetos\Presentations\GIBC2019\BolinhaService\obj\Debug\BolinhaService.pdb

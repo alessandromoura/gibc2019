@@ -1,0 +1,375 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "azureeventgrid_1_Connection_Name": {
+      "type": "string",
+      "defaultValue": "azureeventgrid"
+    },
+    "azureeventgrid_1_Connection_DisplayName": {
+      "type": "string",
+      "defaultValue": "live.com#alessandromoura@hotmail.com"
+    },
+    "dropbox_1_Connection_Name": {
+      "type": "string",
+      "defaultValue": "dropbox"
+    },
+    "dropbox_1_Connection_DisplayName": {
+      "type": "string",
+      "defaultValue": "alessandromoura75@gmail.com"
+    },
+    "servicebus_1_Connection_Name": {
+      "type": "string",
+      "defaultValue": "servicebus-1"
+    },
+    "servicebus_1_Connection_DisplayName": {
+      "type": "string",
+      "defaultValue": "connSB2"
+    },
+    "servicebus_1_connectionString": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Azure Service Bus Connection String"
+      }
+    },
+    "servicebus_2_Connection_Name": {
+      "type": "string",
+      "defaultValue": "servicebus"
+    },
+    "servicebus_2_Connection_DisplayName": {
+      "type": "string",
+      "defaultValue": "connServiceBus"
+    },
+    "servicebus_2_connectionString": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Azure Service Bus Connection String"
+      }
+    },
+    "LogicAppLocation": {
+      "type": "string",
+      "minLength": 1,
+      "allowedValues": [
+        "[resourceGroup().location]",
+        "eastasia",
+        "southeastasia",
+        "centralus",
+        "eastus",
+        "eastus2",
+        "westus",
+        "northcentralus",
+        "southcentralus",
+        "northeurope",
+        "westeurope",
+        "japanwest",
+        "japaneast",
+        "brazilsouth",
+        "australiaeast",
+        "australiasoutheast",
+        "southindia",
+        "centralindia",
+        "westindia",
+        "canadacentral",
+        "canadaeast",
+        "uksouth",
+        "ukwest",
+        "westcentralus",
+        "westus2"
+      ],
+      "defaultValue": "australiasoutheast"
+    },
+    "LogicAppName": {
+      "type": "string",
+      "minLength": 1,
+      "defaultValue": "OrderFood-EventGrid-Hamburguinho"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "properties": {
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "actions": {
+            "For_each": {
+              "type": "Foreach",
+              "foreach": "@body('Get_messages_from_a_topic_subscription_(peek-lock)')",
+              "actions": {
+                "Complete_the_message_in_a_topic_subscription": {
+                  "runAfter": {
+                    "Create_file": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['servicebus_1']['connectionId']"
+                      }
+                    },
+                    "method": "delete",
+                    "path": "/@{encodeURIComponent(encodeURIComponent('myonlinefood'))}/subscriptions/@{encodeURIComponent('HoccaBar')}/messages/complete",
+                    "queries": {
+                      "lockToken": "@items('For_each')?['LockToken']",
+                      "sessionId": "",
+                      "subscriptionType": "Main"
+                    }
+                  }
+                },
+                "Create_file": {
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['dropbox']['connectionId']"
+                      }
+                    },
+                    "method": "post",
+                    "body": "@base64ToBinary(body('HTTP')?['imagem'])",
+                    "path": "/datasets/default/files",
+                    "queries": {
+                      "folderPath": "/gibc2019",
+                      "name": "Mortadela_@{body('Parse_JSON')?['name']}_@{convertFromUtc(utcNow(),'New Zealand Standard Time')}.jpg",
+                      "queryParametersSingleEncoded": true
+                    }
+                  },
+                  "runAfter": {
+                    "HTTP": [
+                      "Succeeded"
+                    ]
+                  }
+                },
+                "HTTP": {
+                  "type": "Http",
+                  "inputs": {
+                    "method": "POST",
+                    "uri": "http://hamburguinhoservice.azurewebsites.net/api/order",
+                    "headers": {
+                      "Credential": "@{body('GetAuthCredential')}"
+                    },
+                    "body": {
+                      "Cliente": "@{body('Parse_JSON')?['name']}",
+                      "Contato": {
+                        "Email": "@{body('Parse_JSON')?['email']}",
+                        "Telefone": "@{body('Parse_JSON')?['phone']}"
+                      },
+                      "Qtd": "@body('Parse_JSON')?['quantity']"
+                    }
+                  },
+                  "runAfter": {
+                    "Parse_JSON": [
+                      "Succeeded"
+                    ]
+                  }
+                },
+                "Parse_JSON": {
+                  "type": "ParseJson",
+                  "inputs": {
+                    "content": "@base64ToString(items('For_each')?['ContentData'])",
+                    "schema": {
+                      "properties": {
+                        "email": {
+                          "type": "string"
+                        },
+                        "meal": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "phone": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "runAfter": {}
+                }
+              },
+              "runAfter": {
+                "GetAuthCredential": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "GetAuthCredential": {
+              "type": "Function",
+              "inputs": {
+                "body": {
+                  "name": "ServiceCredential"
+                },
+                "function": {
+                  "id": "/subscriptions/252aba5f-fe0e-4e4f-ba36-0295754a1160/resourceGroups/GIBC2019/providers/Microsoft.Web/sites/gibc/functions/GetAuthCredential"
+                }
+              },
+              "runAfter": {
+                "Get_messages_from_a_topic_subscription_(peek-lock)": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Get_messages_from_a_topic_subscription_(peek-lock)": {
+              "runAfter": {},
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['servicebus']['connectionId']"
+                  }
+                },
+                "method": "get",
+                "path": "/@{encodeURIComponent(encodeURIComponent('myonlinefood'))}/subscriptions/@{encodeURIComponent('HoccaBar')}/messages/batch/peek",
+                "queries": {
+                  "maxMessageCount": 20,
+                  "sessionId": "",
+                  "subscriptionType": "Main"
+                }
+              }
+            }
+          },
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "When_a_resource_event_occurs": {
+              "splitOn": "@triggerBody()",
+              "type": "ApiConnectionWebhook",
+              "inputs": {
+                "body": {
+                  "properties": {
+                    "destination": {
+                      "endpointType": "webhook",
+                      "properties": {
+                        "endpointUrl": "@{listCallbackUrl()}"
+                      }
+                    },
+                    "filter": {
+                      "includedEventTypes": [
+                        "Microsoft.ServiceBus.ActiveMessagesAvailableWithNoListeners"
+                      ]
+                    },
+                    "topic": "/subscriptions/252aba5f-fe0e-4e4f-ba36-0295754a1160/resourceGroups/GIBC2019/providers/Microsoft.ServiceBus/namespaces/gibc2019"
+                  }
+                },
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azureeventgrid_1']['connectionId']"
+                  }
+                },
+                "path": "/subscriptions/@{encodeURIComponent('252aba5f-fe0e-4e4f-ba36-0295754a1160')}/providers/@{encodeURIComponent('Microsoft.ServiceBus.Namespaces')}/resource/eventSubscriptions",
+                "queries": {
+                  "x-ms-api-version": "2017-09-15-preview"
+                }
+              }
+            }
+          },
+          "contentVersion": "1.0.0.0",
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "servicebus_1": {
+                "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', 'australiasoutheast', '/managedApis/', 'servicebus')]",
+                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('servicebus_1_Connection_Name'))]",
+                "connectionName": "[parameters('servicebus_1_Connection_Name')]"
+              },
+              "dropbox": {
+                "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', 'australiasoutheast', '/managedApis/', 'dropbox')]",
+                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('dropbox_1_Connection_Name'))]",
+                "connectionName": "[parameters('dropbox_1_Connection_Name')]"
+              },
+              "servicebus": {
+                "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', 'australiasoutheast', '/managedApis/', 'servicebus')]",
+                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('servicebus_2_Connection_Name'))]",
+                "connectionName": "[parameters('servicebus_2_Connection_Name')]"
+              },
+              "azureeventgrid_1": {
+                "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', 'australiasoutheast', '/managedApis/', 'azureeventgrid')]",
+                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('azureeventgrid_1_Connection_Name'))]",
+                "connectionName": "[parameters('azureeventgrid_1_Connection_Name')]"
+              }
+            }
+          }
+        }
+      },
+      "name": "[parameters('LogicAppName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[parameters('LogicAppLocation')]",
+      "tags": {
+        "displayName": "LogicApp"
+      },
+      "apiVersion": "2016-06-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', parameters('servicebus_1_Connection_Name'))]",
+        "[resourceId('Microsoft.Web/connections', parameters('dropbox_1_Connection_Name'))]",
+        "[resourceId('Microsoft.Web/connections', parameters('servicebus_2_Connection_Name'))]",
+        "[resourceId('Microsoft.Web/connections', parameters('azureeventgrid_1_Connection_Name'))]"
+      ]
+    },
+    {
+      "type": "MICROSOFT.WEB/CONNECTIONS",
+      "apiVersion": "2016-06-01",
+      "name": "[parameters('azureeventgrid_1_Connection_Name')]",
+      "location": "australiasoutheast",
+      "properties": {
+        "api": {
+          "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', 'australiasoutheast', '/managedApis/', 'azureeventgrid')]"
+        },
+        "displayName": "[parameters('azureeventgrid_1_Connection_DisplayName')]"
+      }
+    },
+    {
+      "type": "MICROSOFT.WEB/CONNECTIONS",
+      "apiVersion": "2016-06-01",
+      "name": "[parameters('dropbox_1_Connection_Name')]",
+      "location": "australiasoutheast",
+      "properties": {
+        "api": {
+          "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', 'australiasoutheast', '/managedApis/', 'dropbox')]"
+        },
+        "displayName": "[parameters('dropbox_1_Connection_DisplayName')]"
+      }
+    },
+    {
+      "type": "MICROSOFT.WEB/CONNECTIONS",
+      "apiVersion": "2016-06-01",
+      "name": "[parameters('servicebus_1_Connection_Name')]",
+      "location": "australiasoutheast",
+      "properties": {
+        "api": {
+          "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', 'australiasoutheast', '/managedApis/', 'servicebus')]"
+        },
+        "displayName": "[parameters('servicebus_1_Connection_DisplayName')]",
+        "parameterValues": {
+          "connectionString": "[parameters('servicebus_1_connectionString')]"
+        }
+      }
+    },
+    {
+      "type": "MICROSOFT.WEB/CONNECTIONS",
+      "apiVersion": "2016-06-01",
+      "name": "[parameters('servicebus_2_Connection_Name')]",
+      "location": "australiasoutheast",
+      "properties": {
+        "api": {
+          "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', 'australiasoutheast', '/managedApis/', 'servicebus')]"
+        },
+        "displayName": "[parameters('servicebus_2_Connection_DisplayName')]",
+        "parameterValues": {
+          "connectionString": "[parameters('servicebus_2_connectionString')]"
+        }
+      }
+    }
+  ],
+  "outputs": {}
+}

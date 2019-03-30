@@ -1,0 +1,323 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "dropbox_1_Connection_Name": {
+      "type": "string",
+      "defaultValue": "dropbox"
+    },
+    "dropbox_1_Connection_DisplayName": {
+      "type": "string",
+      "defaultValue": "alessandromoura75@gmail.com"
+    },
+    "SOAPBolinha_1_Connection_Name": {
+      "type": "string",
+      "defaultValue": "SOAPBolinha"
+    },
+    "SOAPBolinha_1_Connection_DisplayName": {
+      "type": "string",
+      "defaultValue": "SOAPBolinha"
+    },
+    "servicebus_1_Connection_Name": {
+      "type": "string",
+      "defaultValue": "servicebus-1"
+    },
+    "servicebus_1_Connection_DisplayName": {
+      "type": "string",
+      "defaultValue": "connSB2"
+    },
+    "servicebus_1_connectionString": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Azure Service Bus Connection String"
+      }
+    },
+    "servicebus_2_Connection_Name": {
+      "type": "string",
+      "defaultValue": "servicebus"
+    },
+    "servicebus_2_Connection_DisplayName": {
+      "type": "string",
+      "defaultValue": "connServiceBus"
+    },
+    "servicebus_2_connectionString": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Azure Service Bus Connection String"
+      }
+    },
+    "LogicAppLocation": {
+      "type": "string",
+      "minLength": 1,
+      "allowedValues": [
+        "[resourceGroup().location]",
+        "eastasia",
+        "southeastasia",
+        "centralus",
+        "eastus",
+        "eastus2",
+        "westus",
+        "northcentralus",
+        "southcentralus",
+        "northeurope",
+        "westeurope",
+        "japanwest",
+        "japaneast",
+        "brazilsouth",
+        "australiaeast",
+        "australiasoutheast",
+        "southindia",
+        "centralindia",
+        "westindia",
+        "canadacentral",
+        "canadaeast",
+        "uksouth",
+        "ukwest",
+        "westcentralus",
+        "westus2"
+      ],
+      "defaultValue": "australiasoutheast"
+    },
+    "LogicAppName": {
+      "type": "string",
+      "minLength": 1,
+      "defaultValue": "OrderFood-ServiceBus-Bolinha"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "properties": {
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "actions": {
+            "Complete_the_message_in_a_topic_subscription": {
+              "runAfter": {
+                "Create_file": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['servicebus_1']['connectionId']"
+                  }
+                },
+                "method": "delete",
+                "path": "/@{encodeURIComponent(encodeURIComponent('myonlinefood'))}/subscriptions/@{encodeURIComponent('Bolinha')}/messages/complete",
+                "queries": {
+                  "lockToken": "@triggerBody()?['LockToken']",
+                  "sessionId": "",
+                  "subscriptionType": "Main"
+                }
+              }
+            },
+            "Create_file": {
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['dropbox']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": "@base64ToBinary(body('SOAP_Bolinha')?['requisitaFeijoadaResponse']?['requisitaFeijoadaResult']?['imagemFeijoada'])",
+                "path": "/datasets/default/files",
+                "queries": {
+                  "folderPath": "/gibc2019",
+                  "name": "Feijoada_@{body('Parse_JSON')?['name']}_@{convertFromUtc(utcNow(),'New Zealand Standard Time')}.jpg",
+                  "queryParametersSingleEncoded": true
+                }
+              },
+              "runAfter": {
+                "SOAP_Bolinha": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Parse_JSON": {
+              "type": "ParseJson",
+              "inputs": {
+                "content": "@base64ToString(triggerBody()?['ContentData'])",
+                "schema": {
+                  "properties": {
+                    "email": {
+                      "type": "string"
+                    },
+                    "meal": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": "string"
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "runAfter": {}
+            },
+            "SOAP_Bolinha": {
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['SOAPBolinha']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": {
+                  "requisitaFeijoada": {
+                    "pedido": {
+                      "email": "@body('Parse_JSON')?['email']",
+                      "nome": "@body('Parse_JSON')?['name']",
+                      "quantidade": "@body('Parse_JSON')?['quantity']",
+                      "telefone": "@body('Parse_JSON')?['phone']"
+                    }
+                  }
+                },
+                "path": "/RequisitaFeijoada"
+              },
+              "runAfter": {
+                "Parse_JSON": [
+                  "Succeeded"
+                ]
+              }
+            }
+          },
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "When_a_message_is_received_in_a_topic_subscription_(peek-lock)": {
+              "recurrence": {
+                "frequency": "Minute",
+                "interval": 10
+              },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['servicebus']['connectionId']"
+                  }
+                },
+                "method": "get",
+                "path": "/@{encodeURIComponent(encodeURIComponent('myonlinefood'))}/subscriptions/@{encodeURIComponent('Bolinha')}/messages/head/peek",
+                "queries": {
+                  "sessionId": "None",
+                  "subscriptionType": "Main"
+                }
+              }
+            }
+          },
+          "contentVersion": "1.0.0.0",
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "servicebus_1": {
+                "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', 'australiasoutheast', '/managedApis/', 'servicebus')]",
+                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('servicebus_1_Connection_Name'))]",
+                "connectionName": "[parameters('servicebus_1_Connection_Name')]"
+              },
+              "dropbox": {
+                "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', 'australiasoutheast', '/managedApis/', 'dropbox')]",
+                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('dropbox_1_Connection_Name'))]",
+                "connectionName": "[parameters('dropbox_1_Connection_Name')]"
+              },
+              "SOAPBolinha": {
+                "id": "[resourceId('Microsoft.Web/customApis', 'SOAPBolinha')]",
+                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('SOAPBolinha_1_Connection_Name'))]",
+                "connectionName": "[parameters('SOAPBolinha_1_Connection_Name')]"
+              },
+              "servicebus": {
+                "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', 'australiasoutheast', '/managedApis/', 'servicebus')]",
+                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('servicebus_2_Connection_Name'))]",
+                "connectionName": "[parameters('servicebus_2_Connection_Name')]"
+              }
+            }
+          }
+        }
+      },
+      "name": "[parameters('LogicAppName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[parameters('LogicAppLocation')]",
+      "tags": {
+        "displayName": "LogicApp"
+      },
+      "apiVersion": "2016-06-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', parameters('servicebus_1_Connection_Name'))]",
+        "[resourceId('Microsoft.Web/connections', parameters('dropbox_1_Connection_Name'))]",
+        "[resourceId('Microsoft.Web/connections', parameters('SOAPBolinha_1_Connection_Name'))]",
+        "[resourceId('Microsoft.Web/connections', parameters('servicebus_2_Connection_Name'))]"
+      ]
+    },
+    {
+      "type": "MICROSOFT.WEB/CONNECTIONS",
+      "apiVersion": "2016-06-01",
+      "name": "[parameters('dropbox_1_Connection_Name')]",
+      "location": "australiasoutheast",
+      "properties": {
+        "api": {
+          "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', 'australiasoutheast', '/managedApis/', 'dropbox')]"
+        },
+        "displayName": "[parameters('dropbox_1_Connection_DisplayName')]"
+      }
+    },
+    {
+      "type": "MICROSOFT.WEB/CONNECTIONS",
+      "apiVersion": "2016-06-01",
+      "name": "[parameters('SOAPBolinha_1_Connection_Name')]",
+      "location": "australiasoutheast",
+      "properties": {
+        "api": {
+          "id": "[resourceId('Microsoft.Web/customApis', 'SOAPBolinha')]"
+        },
+        "displayName": "[parameters('SOAPBolinha_1_Connection_DisplayName')]"
+      }
+    },
+    {
+      "type": "MICROSOFT.WEB/CONNECTIONS",
+      "apiVersion": "2016-06-01",
+      "name": "[parameters('servicebus_1_Connection_Name')]",
+      "location": "australiasoutheast",
+      "properties": {
+        "api": {
+          "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', 'australiasoutheast', '/managedApis/', 'servicebus')]"
+        },
+        "displayName": "[parameters('servicebus_1_Connection_DisplayName')]",
+        "parameterValues": {
+          "connectionString": "[parameters('servicebus_1_connectionString')]"
+        }
+      }
+    },
+    {
+      "type": "MICROSOFT.WEB/CONNECTIONS",
+      "apiVersion": "2016-06-01",
+      "name": "[parameters('servicebus_2_Connection_Name')]",
+      "location": "australiasoutheast",
+      "properties": {
+        "api": {
+          "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', 'australiasoutheast', '/managedApis/', 'servicebus')]"
+        },
+        "displayName": "[parameters('servicebus_2_Connection_DisplayName')]",
+        "parameterValues": {
+          "connectionString": "[parameters('servicebus_2_connectionString')]"
+        }
+      }
+    }
+  ],
+  "outputs": {}
+}

@@ -1,0 +1,14 @@
+C:\Projetos\Presentations\GIBC2019\HamburguinhoService\bin\Release\netcoreapp2.0\HamburguinhoService.deps.json
+C:\Projetos\Presentations\GIBC2019\HamburguinhoService\bin\Release\netcoreapp2.0\HamburguinhoService.runtimeconfig.json
+C:\Projetos\Presentations\GIBC2019\HamburguinhoService\bin\Release\netcoreapp2.0\HamburguinhoService.runtimeconfig.dev.json
+C:\Projetos\Presentations\GIBC2019\HamburguinhoService\bin\Release\netcoreapp2.0\HamburguinhoService.dll
+C:\Projetos\Presentations\GIBC2019\HamburguinhoService\bin\Release\netcoreapp2.0\HamburguinhoService.pdb
+C:\Projetos\Presentations\GIBC2019\HamburguinhoService\obj\Release\netcoreapp2.0\HamburguinhoService.csprojResolveAssemblyReference.cache
+C:\Projetos\Presentations\GIBC2019\HamburguinhoService\obj\Release\netcoreapp2.0\HamburguinhoService.csproj.CoreCompileInputs.cache
+C:\Projetos\Presentations\GIBC2019\HamburguinhoService\obj\Release\netcoreapp2.0\HamburguinhoService.AssemblyInfoInputs.cache
+C:\Projetos\Presentations\GIBC2019\HamburguinhoService\obj\Release\netcoreapp2.0\HamburguinhoService.AssemblyInfo.cs
+C:\Projetos\Presentations\GIBC2019\HamburguinhoService\obj\Release\netcoreapp2.0\HamburguinhoService.dll
+C:\Projetos\Presentations\GIBC2019\HamburguinhoService\obj\Release\netcoreapp2.0\HamburguinhoService.pdb
+C:\Projetos\Presentations\GIBC2019\HamburguinhoService\bin\Release\netcoreapp2.0\images\bolinha-feijoada.jpg
+C:\Projetos\Presentations\GIBC2019\HamburguinhoService\bin\Release\netcoreapp2.0\images\hamburguinho.jpg
+C:\Projetos\Presentations\GIBC2019\HamburguinhoService\bin\Release\netcoreapp2.0\images\mortadela.jpg
