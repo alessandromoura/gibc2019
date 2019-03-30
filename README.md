@@ -11,6 +11,7 @@ To make this solution to work you need to do the following steps:
 * Create a Service Bus namespace (premium tier)
 * In Service Bus, create one topic and three subscriptions filtering by the field Meal
 * In Service Bus, go to events and point to the Logic App created for the HoccaBar
-* If you have questions about setting this up, let me know and I'll help you to do it.
+
+There is some digging in the Logic Apps to understand how this solution needs to be implemented, so if you can't figure this out, just contact me and I'll help you to do it.
 
 Please be aware of the cost of Service Bus (premium tier), and how much it will cost it to maintain this environment live. If it's just for testing, remove the namespace after you are done with the test or you will end up with a very high bill.
